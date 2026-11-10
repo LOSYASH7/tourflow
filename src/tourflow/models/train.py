@@ -31,7 +31,6 @@ from tourflow.models.backtest import (
 from tourflow.models.estimators import make_models
 
 log = logging.getLogger(__name__)
-PDP_FEATURES = ["w_clim_beach", "w_anom_e", "pv_rel", "fx_usd_chg3", "cal_nonworking", "f_yoy_recent"]
 
 
 def model_version(name: str, params: dict, seed: int, data_hash: str) -> str:
@@ -159,7 +158,8 @@ def _register(engine, versions, results, best, data_hash, seed, cfg, art_path, a
 
 
 def _explain(engine, final, df, results, best, version, split, factory, seed, run_id) -> dict:
-    with runlog.step(engine, run_id, "models", "explain") as st:
+    abl: dict = {}
+    with runlog.step(engine, run_id, "models", "explain") as st:  # сбой объяснений не отменяет прогноз
         rows = df[df["level"].notna()].copy()
         if best == "random_forest":   # TreeSHAP по лесу дорогой — будущее, отложенная и случайная выборка
             keep = rows["target"].isna() | (rows["target_month"] >= split.holdout_start)
@@ -169,11 +169,13 @@ def _explain(engine, final, df, results, best, version, split, factory, seed, ru
             "model_version": version, "region_code": rows["region_code"].values, "acc_type": rows["acc_type"].values,
             "origin_month": rows["origin_month"].dt.date.values, "horizon": rows["horizon"].values,
             "base_value": base,
-            "contributions": explain.contributions_json(sv, rows[ALL_FEATURES], final.base_of(rows))})
+            "contributions": explain.contributions_json(sv, rows[ALL_FEATURES], final.base_of(rows),
+                                                       rows["level"].to_numpy())})
         db.replace_where(engine, "mart.explanations", "model_version = :v", {"v": version}, expl)
 
         trained = rows["target"].notna().to_numpy()
-        imp = [explain.importance_shap(sv[trained], rows[trained])]
+        imp_shap = explain.importance_shap(sv[trained], rows[trained])
+        imp = [imp_shap]
         ho = results[best]["holdout"]
         imp.append(explain.importance_permutation(final, ho, seed))
         base_wape = float(results[best]["m_bt"].iloc[0]["wape"])
@@ -184,7 +186,10 @@ def _explain(engine, final, df, results, best, version, split, factory, seed, ru
         imp = pd.concat(imp, ignore_index=True).assign(model_version=version)
         db.replace_where(engine, "mart.importance", "model_version = :v", {"v": version},
                          imp[["model_version", "method", "period", "feature", "importance"]])
-        pdp = explain.partial_dependence(final, rows[rows["target"].notna()], PDP_FEATURES).assign(model_version=version)
+        # PDP — для самых важных числовых признаков по SHAP (кроме самой сезонной базы)
+        top = (imp_shap.query("period == 'all'").set_index("feature")["importance"]
+               .drop(["region_code", "acc_type", "f_base"], errors="ignore").nlargest(8).index.tolist())
+        pdp = explain.partial_dependence(final, rows[rows["target"].notna()], top).assign(model_version=version)
         db.replace_where(engine, "mart.pdp", "model_version = :v", {"v": version}, pdp)
         st.rows_inserted = len(expl)
         abl = imp[imp["method"] == "ablation"].set_index("feature")["importance"].round(2).to_dict()

@@ -59,3 +59,15 @@ def test_quality_and_features(engine, cfg):
     df, h = pipeline.make_features(engine, cfg, None)
     df2, h2 = pipeline.make_features(engine, cfg, None)
     assert h == h2 and len(df) == len(df2)
+
+
+def test_train_end_to_end_is_reproducible(engine, cfg, tmp_path):
+    s = _settings(date(2026, 7, 15)).model_copy(update={"artifacts_dir": tmp_path})
+    r1 = pipeline.train(engine, cfg, s, None)
+    r2 = pipeline.train(engine, cfg, s, None)
+    assert r1["version"] == r2["version"] and r1["wape_holdout"] == r2["wape_holdout"]
+    with engine.connect() as c:
+        assert c.execute(text("SELECT count(*) FROM mart.model_registry WHERE is_active")).scalar_one() == 1
+        n_future = c.execute(text("SELECT count(*) FROM mart.forecasts WHERE kind = 'future'")).scalar_one()
+        assert n_future == len(cfg.regions) * len(cfg.accommodation_types) * len(cfg.forecast.horizons)
+        assert c.execute(text("SELECT count(*) FROM mart.explanations")).scalar_one() > 0

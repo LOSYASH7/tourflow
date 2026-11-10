@@ -1,0 +1,30 @@
+name: ci
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: tourflow_test
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      TOURFLOW_SOURCE_MODE: synthetic
+      TOURFLOW_TEST_DATABASE_URL: postgresql+psycopg://postgres:ci@localhost:5432/tourflow_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install ".[dashboard,orchestration,dev]"
+      - run: ruff check src tests dashboard
+      - run: bandit -q -r src
+      - run: pytest
+      - run: pip-audit || true   # отчёт об известных уязвимостях зависимостей

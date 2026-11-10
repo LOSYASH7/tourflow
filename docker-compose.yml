@@ -1,0 +1,92 @@
+# Запуск: cp .env.example .env (задать пароли) → docker compose up -d --build → make pipeline
+#
+# Безопасность:
+#  * БД в изолированной сети backend (internal: true) — у неё нет выхода в интернет и портов наружу;
+#  * наружу опубликованы только дашборд и UI Prefect, и только на 127.0.0.1;
+#  * приложение ходит в БД ролями с минимальными правами (ETL / только чтение для дашборда);
+#  * контейнеры приложения без root, без capabilities, no-new-privileges, дашборд — read-only ФС.
+
+x-app: &app
+  build: .
+  image: tourflow:latest
+  env_file: .env
+  environment: &app-env
+    TOURFLOW_DATABASE_URL: postgresql+psycopg://tourflow_etl:${TOURFLOW_ETL_PASSWORD:?}@db:5432/${POSTGRES_DB:-tourflow}
+    TOURFLOW_READER_DATABASE_URL: postgresql+psycopg://tourflow_reader:${TOURFLOW_READER_PASSWORD:?}@db:5432/${POSTGRES_DB:-tourflow}
+    PREFECT_API_URL: http://prefect:4200/api
+  depends_on:
+    db: {condition: service_healthy}
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  volumes:
+    - artifacts:/app/artifacts
+    - ./data/inbox:/app/data/inbox:ro
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-tourflow}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+      TOURFLOW_ETL_PASSWORD: ${TOURFLOW_ETL_PASSWORD:?}
+      TOURFLOW_READER_PASSWORD: ${TOURFLOW_READER_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+      - ./sql:/sql:ro
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 20
+
+  prefect:
+    image: prefecthq/prefect:3-python3.12
+    command: prefect server start --host 0.0.0.0
+    restart: unless-stopped
+    ports: ["127.0.0.1:4200:4200"]
+    networks: [backend, egress]
+
+  # разовый прогон: docker compose run --rm pipeline
+  pipeline:
+    <<: *app
+    command: ["tourflow", "run"]
+    networks: [backend, egress]
+    profiles: [manual]
+
+  scheduler:
+    <<: *app
+    command: ["python", "-m", "tourflow.flows"]
+    restart: unless-stopped
+    depends_on:
+      db: {condition: service_healthy}
+      prefect: {condition: service_started}
+    networks: [backend, egress]
+
+  dashboard:
+    <<: *app
+    command: ["streamlit", "run", "dashboard/app.py", "--server.address=0.0.0.0", "--server.port=8501",
+              "--server.headless=true", "--browser.gatherUsageStats=false", "--server.enableXsrfProtection=true"]
+    restart: unless-stopped
+    ports: ["127.0.0.1:8501:8501"]
+    read_only: true
+    tmpfs: [/tmp]
+    environment:
+      <<: *app-env
+      HOME: /tmp
+      # дашборду не нужен DSN с правами записи
+      TOURFLOW_DATABASE_URL: postgresql+psycopg://tourflow_reader:${TOURFLOW_READER_PASSWORD:?}@db:5432/${POSTGRES_DB:-tourflow}
+    networks: [backend, frontend]
+
+networks:
+  backend:
+    internal: true     # без выхода в интернет
+  egress: {}           # выход наружу — только сервисам, которые ходят к источникам
+  frontend: {}
+
+volumes:
+  pgdata: {}
+  artifacts: {}

@@ -113,11 +113,14 @@ def ablation(factory_for, df: pd.DataFrame, origins, holdout_start, base_wape: f
     return pd.DataFrame(rows).assign(method="ablation", period="all")
 
 
-def contributions_json(sv: pd.DataFrame, X: pd.DataFrame, ly_base: np.ndarray) -> list[dict]:
-    """{признак: [значение, вклад в log]}; '__base_ly' — сезонная база «как год назад»."""
+def contributions_json(sv: pd.DataFrame, X: pd.DataFrame, ly_base: np.ndarray, level: np.ndarray) -> list[dict]:
+    """{признак: [значение, вклад в log]}; '__base_ly' — сезонная база, '__level' — уровень ряда.
+
+    Прогноз (гостей) = level × exp(base_ly + base_value + Σ вкладов).
+    """
     out = []
     for i in range(len(sv)):
-        rec = {"__base_ly": [None, round(float(ly_base[i]), 6)]}
+        rec = {"__base_ly": [None, round(float(ly_base[i]), 6)], "__level": [float(level[i]), 0.0]}
         for f in sv.columns:
             v = X.iloc[i][f]
             v = None if (isinstance(v, float) and np.isnan(v)) else (v.item() if hasattr(v, "item") else v)

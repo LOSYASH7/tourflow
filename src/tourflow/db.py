@@ -22,6 +22,18 @@ _tables: dict[str, Table] = {}
 NON_DATA_COLS = {"payload_id", "updated_at"}
 
 
+ALLOWED_SCHEMAS = {"raw", "stg", "mart", "ops"}
+
+
+def safe_ident(qualified: str) -> str:
+    """Имя таблицы в SQL-тексте допускается только вида схема.таблица из известных схем."""
+    import re
+
+    if not re.fullmatch(r"[a-z_]+\.[a-z_]+", qualified) or qualified.split(".")[0] not in ALLOWED_SCHEMAS:
+        raise ValueError(f"недопустимое имя таблицы: {qualified!r}")
+    return qualified
+
+
 def get_engine(url: str | None = None) -> Engine:
     dsn = url or get_settings().database_url.get_secret_value()
     if dsn not in _engines:
@@ -104,7 +116,8 @@ def replace_where(engine: Engine, qualified: str, where_sql: str, params: dict, 
     t = table(engine, qualified)
     rows = df.astype(object).where(df.notna(), None).to_dict("records")
     with engine.begin() as conn:
-        conn.execute(text(f"DELETE FROM {qualified} WHERE {where_sql}"), params)  # noqa: S608 — имена из кода
+        # имя проверено safe_ident, условие — константа из кода, значения — только параметры
+        conn.execute(text(f"DELETE FROM {safe_ident(qualified)} WHERE {where_sql}"), params)  # noqa: S608  # nosec B608
         if rows:
             conn.execute(t.insert(), rows)
     return len(rows)

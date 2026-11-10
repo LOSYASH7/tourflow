@@ -47,8 +47,7 @@ def main(argv: list[str] | None = None) -> None:
             sys.exit("Пароль должен быть не короче 10 символов")
         from tourflow.security import hash_password
 
-        # '$' в .env для docker compose экранируется как '$$'
-        print("TOURFLOW_DASHBOARD_PASSWORD_HASH=" + hash_password(pw).replace("$", "$$"))
+        print("TOURFLOW_DASHBOARD_PASSWORD_HASH=" + hash_password(pw))
         return
     if a.cmd == "db-init":
         db.apply_schema(db.get_engine(a.admin_url))

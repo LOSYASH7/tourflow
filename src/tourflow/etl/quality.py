@@ -49,7 +49,7 @@ DATE_COL = {"stg.accommodation": "month"}
 
 
 def _load(engine: Engine, table: str) -> pd.DataFrame:
-    df = db.read_df(engine, f"SELECT * FROM {table}")  # noqa: S608 — имя таблицы из кода
+    df = db.read_df(engine, f"SELECT * FROM {db.safe_ident(table)}")  # noqa: S608  # nosec B608
     if "rate" in df:
         df["rate"] = df["rate"].astype(float)
     return df

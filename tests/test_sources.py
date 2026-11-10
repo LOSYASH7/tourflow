@@ -76,7 +76,9 @@ def test_cbr_xml_parsing(cfg):
 
 def test_cbr_rejects_xml_entities(cfg):
     bomb = b'<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "aaaa"><!ENTITY b "&a;&a;">]><ValCurs>&b;</ValCurs>'
-    with pytest.raises(Exception):
+    from defusedxml import EntitiesForbidden
+
+    with pytest.raises(EntitiesForbidden):
         CbrSource(cfg, transport=None, today=date(2024, 1, 1)).parse("USD", bomb, "")
 
 
