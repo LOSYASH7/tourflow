@@ -1,0 +1,19 @@
+# секреты — никогда не коммитим
+.env
+*.pem
+*.key
+
+# данные и артефакты
+data/inbox/**/*.xls*
+data/raw/
+artifacts/
+mlruns/
+*.joblib
+
+# python
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.ipynb_checkpoints/

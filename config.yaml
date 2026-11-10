@@ -1,0 +1,98 @@
+# Конфигурация предметной области и модели. Секреты сюда не кладём — они в .env.
+
+project:
+  seed: 42
+  history_start: "2019-01-01"     # с какой даты грузим историю
+
+forecast:
+  horizons: [1, 2, 3]             # на сколько месяцев вперёд от последнего известного месяца
+  publication_lag_months: 2       # Росстат публикует месяц M примерно в M+2
+  holdout_months: 6               # отложенная выборка, не участвует в выборе модели
+  backtest_origins: 12            # число точек rolling origin перед отложенной выборкой
+  interval_level: 0.8             # уровень интервала прогноза
+  exclude_periods:                # периоды, исключаемые из обучения (аномалии)
+    - ["2020-04-01", "2020-08-01"]
+
+accommodation_types:
+  hotels: "Гостиницы и аналогичные средства размещения"
+  sanatoriums: "Санаторно-курортные организации"
+  recreation: "Организации отдыха"
+
+regions:
+  - code: "03000000"
+    name: "Краснодарский край"
+    articles: ["Сочи", "Анапа", "Геленджик"]
+    points: [{id: sochi, lat: 43.585, lon: 39.723}, {id: anapa, lat: 44.894, lon: 37.316}]
+  - code: "45000000"
+    name: "г. Москва"
+    articles: ["Москва"]
+    points: [{id: moscow, lat: 55.756, lon: 37.617}]
+  - code: "40000000"
+    name: "г. Санкт-Петербург"
+    articles: ["Санкт-Петербург", "Эрмитаж"]
+    points: [{id: spb, lat: 59.939, lon: 30.316}]
+  - code: "46000000"
+    name: "Московская область"
+    articles: ["Московская_область", "Сергиев_Посад"]
+    points: [{id: sergiev_posad, lat: 56.310, lon: 38.130}]
+  - code: "35000000"
+    name: "Республика Крым"
+    articles: ["Ялта", "Евпатория"]
+    points: [{id: yalta, lat: 44.495, lon: 34.166}, {id: evpatoria, lat: 45.190, lon: 33.367}]
+  - code: "92000000"
+    name: "Республика Татарстан"
+    articles: ["Казань"]
+    points: [{id: kazan, lat: 55.796, lon: 49.106}]
+  - code: "27000000"
+    name: "Калининградская область"
+    articles: ["Калининград", "Зеленоградск"]
+    points: [{id: kaliningrad, lat: 54.710, lon: 20.510}]
+  - code: "07000000"
+    name: "Ставропольский край"
+    articles: ["Кисловодск", "Пятигорск"]
+    points: [{id: kislovodsk, lat: 43.905, lon: 42.716}]
+
+school_holidays:                  # приблизительные даты каникул (месяц-день), повторяются ежегодно
+  - ["06-01", "08-31"]
+  - ["12-29", "12-31"]
+  - ["01-01", "01-08"]
+  - ["03-23", "03-31"]
+  - ["10-26", "11-04"]
+
+sources:
+  # Разрешённые хосты: коннектор откажется ходить куда-либо ещё (защита от SSRF через конфиг).
+  allowed_hosts:
+    - rosstat.gov.ru
+    - fedstat.ru
+    - archive-api.open-meteo.com
+    - wikimedia.org
+    - www.cbr.ru
+    - isdayoff.ru
+  http:
+    timeout_s: 30
+    max_retries: 5
+    max_response_mb: 50
+    user_agent: "tourflow-student-project/0.1 (educational; contact via repo issues)"
+  rosstat:
+    urls: []                      # прямые ссылки на XLSX; пусто = только папка inbox
+    inbox_dir: "data/inbox/rosstat"
+    reload_months: 3              # Росстат пересматривает данные — перечитываем хвост
+  weather:
+    base_url: "https://archive-api.open-meteo.com/v1/archive"
+    reload_days: 7
+  pageviews:
+    base_url: "https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/ru.wikipedia/all-access/user"
+    reload_days: 3
+  cbr:
+    base_url: "https://www.cbr.ru/scripts/XML_dynamic.asp"
+    currencies: {USD: "R01235", EUR: "R01239"}
+    reload_days: 7
+  calendar:
+    base_url: "https://isdayoff.ru/api/getdata"
+
+models:
+  elasticnet: {alpha: 0.01, l1_ratio: 0.5, max_iter: 20000}
+  random_forest: {n_estimators: 400, min_samples_leaf: 3, max_features: 0.5}
+  lightgbm: {n_estimators: 500, learning_rate: 0.03, num_leaves: 15, min_child_samples: 10,
+             subsample: 0.8, subsample_freq: 1, colsample_bytree: 0.8, reg_lambda: 1.0, verbose: -1}
+  selection_metric: wape
