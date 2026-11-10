@@ -210,3 +210,24 @@ class SyntheticWorld:
         buf = io.BytesIO()
         wb.save(buf)
         return buf.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def world_inputs(cfg: AppConfig, as_of: date):
+    """Inputs для features.py напрямую из синтетического мира (без БД) — для тестов."""
+    from tourflow.features import Inputs
+
+    w = SyntheticWorld(cfg, as_of)
+    lag = cfg.forecast.publication_lag_months
+    last_t = (pd.Timestamp(as_of).to_period("M") - lag).to_timestamp()
+    end = pd.Timestamp(as_of - timedelta(days=5))
+    target = w.guests[w.guests["month"] <= last_t].copy()
+    weather = pd.concat([
+        df.loc[:end].rename(columns={"precip": "precip_mm", "sun_h": "sunshine_h"})
+        .assign(point_id=p.id, region_code=r.code).rename_axis("day").reset_index()
+        for r in cfg.regions for p in r.points for df in [w.weather[p.id]]])
+    pv = pd.concat([s.loc[:end].rename("views").rename_axis("day").reset_index()
+                    .assign(article=a, region_code=r.code) for r in cfg.regions for a in r.articles
+                    for s in [w.pageviews[a]]])
+    fx = w.fx.loc[:end].rename("rate").rename_axis("day").reset_index().assign(currency="USD")
+    cal = w.calendar.loc[: f"{as_of.year}-12-31"].rename("day_type").rename_axis("day").reset_index()
+    return Inputs(target=target, weather=weather, pageviews=pv, fx=fx, calendar=cal)

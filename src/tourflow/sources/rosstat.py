@@ -134,7 +134,9 @@ class RosstatSource(Source):
             rows = [r for r in rows if any(c is not None and str(c).strip() for c in r)]
             if not rows:
                 continue
-            df = self._parse_long(rows) or self._parse_wide(rows, ws.title)
+            df = self._parse_long(rows)
+            if df is None:
+                df = self._parse_wide(rows, ws.title)
             if df is not None:
                 frames.append(df)
         wb.close()

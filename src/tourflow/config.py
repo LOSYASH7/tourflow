@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     synthetic_as_of: date | None = None  # «сегодня» для синтетического мира
     artifacts_dir: Path = PROJECT_ROOT / "artifacts"
     mlflow_tracking_uri: str | None = None
-    dashboard_password_hash: SecretStr | None = None  # sha256-хеш пароля дашборда
+    dashboard_password_hash: SecretStr | None = None  # scrypt-хеш пароля дашборда
     log_level: str = "INFO"
 
 
