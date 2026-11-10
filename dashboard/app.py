@@ -153,7 +153,7 @@ hist = fc[(fc.kind != "future") & (fc.horizon == hist_h)].sort_values("target_mo
 start = last_pub - pd.DateOffset(months=36)
 fig = go.Figure()
 sa = series_act[series_act.index >= start]
-fig.add_scatter(x=sa.index, y=sa.values, name="Факт", line=dict(color="#1f2937", width=2))
+fig.add_scatter(x=sa.index, y=sa.values, name="Факт", line=dict(color="#94a3b8", width=2.5))  # виден в светлой и тёмной теме
 for kind, color, label in (("backtest", "#60a5fa", "Прогноз (бэктест)"), ("holdout", "#2563eb", "Прогноз (отложенная выборка)")):
     h = hist[hist.kind == kind]
     fig.add_scatter(x=h.target_month, y=h.y_pred, name=f"{label}, h={hist_h}", mode="lines+markers",
