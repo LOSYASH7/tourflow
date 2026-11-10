@@ -38,3 +38,20 @@ def test_password_hashing():
     assert verify_password("correct horse battery", h)
     assert not verify_password("wrong", h)
     assert not verify_password("x", "garbage")
+
+
+def test_models_work_when_auxiliary_source_is_missing(cfg, inputs):
+    """Источник просмотров недоступен (403, сбой): признаки — пропуски, конвейер не падает."""
+    from tourflow.features import Inputs, build_features
+
+    empty_pv = inputs.pageviews.iloc[0:0]
+    inp = Inputs(inputs.target, inputs.weather, empty_pv, inputs.fx, inputs.calendar)
+    df = build_features(inp, cfg)
+    assert df["pv_rel"].isna().all()
+    tr = train_rows(df, df["origin_month"].max())
+    rows = df[df.origin_month == df.origin_month.max()]
+    for name in ("elasticnet", "lightgbm", "random_forest"):
+        m = make_models(cfg.models, cfg.project.seed)[name]().fit(tr, tr["y_rel"])
+        assert np.isfinite(m.predict(rows)).all()
+    sv, base = explain.shap_values(make_models(cfg.models, 42)["elasticnet"]().fit(tr, tr["y_rel"]), rows)
+    assert np.isfinite(sv.to_numpy()).all()

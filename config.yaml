@@ -81,7 +81,8 @@ sources:
     timeout_s: 30
     max_retries: 5
     max_response_mb: 50
-    user_agent: "tourflow-student-project/0.1 (educational; contact via repo issues)"
+    # {contact} подставляется из TOURFLOW_CONTACT в .env (email или ссылка на репозиторий)
+    user_agent: "tourflow/0.1 (student forecasting project; {contact}) python-httpx"
   rosstat:
     urls: []                      # прямые ссылки на XLSX; пусто = только папка inbox
     inbox_dir: "data/inbox/rosstat"

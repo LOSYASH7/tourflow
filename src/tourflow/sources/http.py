@@ -21,7 +21,7 @@ from tenacity import (
     wait_exponential_jitter,
 )
 
-from tourflow.config import AppConfig
+from tourflow.config import AppConfig, get_settings
 
 log = logging.getLogger(__name__)
 
@@ -61,9 +61,13 @@ class HttpTransport:
         self.allowed = set(cfg.sources.allowed_hosts)
         self.max_bytes = h.max_response_mb * 1024 * 1024
         self.max_retries = h.max_retries
+        contact = get_settings().contact.strip()
+        if not contact:
+            log.warning("TOURFLOW_CONTACT не задан: Wikimedia может отклонять запросы (403)")
+        ua = h.user_agent.format(contact=contact or "contact not set")
         self.client = httpx.Client(
             timeout=httpx.Timeout(h.timeout_s),
-            headers={"User-Agent": h.user_agent},
+            headers={"User-Agent": ua},
             follow_redirects=True,
             max_redirects=3,
             verify=True,

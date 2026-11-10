@@ -67,6 +67,7 @@ class Source(ABC):
             if not requests:
                 st.status = "skipped"
                 st.note("нет новых периодов для загрузки")
+            errors = 0
             for req in requests:
                 st.requests += 1
                 try:
@@ -74,8 +75,14 @@ class Source(ABC):
                 except NotFound:
                     st.note(f"{req.key}: нет данных за {req.period_start}..{req.period_end}")
                     continue
+                except Exception as exc:  # noqa: BLE001 — сбой одного запроса не отменяет остальные
+                    errors += 1
+                    st.note(f"{req.key}: {type(exc).__name__}: {str(exc)[:200]}")
+                    continue
                 self._store_raw(engine, req, content, ctype, run_id)
             self._parse_pending(engine, st)
+            if errors:
+                st.status = "failed" if errors == len(requests) else "partial"
             if st.status == "skipped" and st.rows_fetched:
                 st.status = "success"            # данные пришли не по сети, а из inbox
             st.watermark_after = runlog.get_watermark(engine, self.name, "*")

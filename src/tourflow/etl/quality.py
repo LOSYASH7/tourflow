@@ -45,6 +45,9 @@ SCHEMAS = {
     "stg.calendar_daily": pa.DataFrameSchema({"day_type": pa.Column(int, pa.Check.isin([0, 1, 2]))}),
 }
 FRESHNESS_DAYS = {"stg.weather_daily": 14, "stg.pageviews_daily": 7, "stg.fx_daily": 10}
+# Без целевой прогнозировать нечего — это блокирует прогон. Вспомогательный источник может быть
+# временно недоступен: признаки из него станут пропусками, модели с этим работают.
+TARGET_TABLE = "stg.accommodation"
 DATE_COL = {"stg.accommodation": "month"}
 
 
@@ -60,7 +63,8 @@ def run_checks(engine: Engine, cfg: AppConfig, today: date, run_id: uuid.UUID | 
     for table, schema in SCHEMAS.items():
         df = _load(engine, table)
         if df.empty:
-            results.append(CheckResult(table, "not_empty", False, "таблица пуста"))
+            results.append(CheckResult(table, "not_empty", False, "таблица пуста",
+                                       blocking=table == TARGET_TABLE))
             continue
         try:
             schema.validate(df, lazy=True)

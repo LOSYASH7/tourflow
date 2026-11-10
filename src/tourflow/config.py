@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str | None = None
     dashboard_password_hash: SecretStr | None = None  # scrypt-хеш пароля дашборда
     log_level: str = "INFO"
+    # контакт для User-Agent: email или ссылка на репозиторий (требование Wikimedia и хороший тон)
+    contact: str = ""
 
 
 class Point(BaseModel):
