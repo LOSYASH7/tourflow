@@ -62,14 +62,20 @@ def require_login() -> None:
     if st.session_state.get("auth_ok"):
         return
     st.title("Вход")
-    pw = st.text_input("Пароль", type="password")
-    if st.button("Войти") and pw:
+    fails = st.session_state.get("fails", 0)
+    if fails:
+        st.error(f"Неверный пароль (попыток: {fails})")
+    with st.form("login"):                      # Enter в поле тоже отправляет форму
+        pw = st.text_input("Пароль", type="password")
+        sent = st.form_submit_button("Войти")
+    if sent and pw:
         if verify_password(pw, stored.get_secret_value()):
             st.session_state["auth_ok"] = True
+            st.session_state["fails"] = 0
             st.rerun()
-        st.session_state["fails"] = st.session_state.get("fails", 0) + 1
-        time.sleep(min(2 ** st.session_state["fails"], 30))   # замедление перебора
-        st.error("Неверный пароль")
+        st.session_state["fails"] = fails + 1
+        time.sleep(min(fails + 1, 5))           # замедление перебора, но без долгого «зависания»
+        st.rerun()
     st.stop()
 
 
