@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import os
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -14,7 +15,20 @@ import yaml
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+def _project_root() -> Path:
+    """Корень проекта (там config.yaml, sql/, data/).
+
+    TOURFLOW_HOME → исходники рядом с пакетом (режим разработки) → текущая папка (Docker: /app).
+    """
+    if os.getenv("TOURFLOW_HOME"):
+        return Path(os.environ["TOURFLOW_HOME"]).resolve()
+    src_root = Path(__file__).resolve().parents[2]
+    if (src_root / "config.yaml").exists():
+        return src_root
+    return Path.cwd()
+
+
+PROJECT_ROOT = _project_root()
 
 
 class Settings(BaseSettings):
