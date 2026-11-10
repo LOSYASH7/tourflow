@@ -15,6 +15,7 @@ import yaml
 from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 def _project_root() -> Path:
     """Корень проекта (там config.yaml, sql/, data/).
 

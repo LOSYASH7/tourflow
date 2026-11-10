@@ -50,7 +50,7 @@ def test_rerun_is_idempotent_and_shift_is_incremental(engine, cfg):
 
     pipeline.ingest(engine, cfg, _settings(date(2026, 7, 15)), None)   # прошёл месяц
     after = _counts(engine)
-    assert after["stg.accommodation"] == first["stg.accommodation"] + 24   # +1 месяц × 8 регионов × 3 вида
+    assert after["stg.accommodation"] == first["stg.accommodation"] + len(cfg.regions) * len(cfg.accommodation_types)
     assert after["stg.weather_daily"] > first["stg.weather_daily"]
 
 

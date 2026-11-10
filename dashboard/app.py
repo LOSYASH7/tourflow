@@ -35,7 +35,8 @@ FEATURE_RU = {
     "fx_usd_log": "Курс доллара", "fx_usd_chg3": "Изменение курса за 3 мес.", "fx_usd_yoy": "Курс доллара, г/г",
     "region_code": "Регион", "acc_type": "Вид размещения",
 }
-ACC_RU = {"hotels": "Гостиницы", "sanatoriums": "Санатории", "recreation": "Организации отдыха"}
+ACC_RU = {"total": "Все КСР", "hotels": "Гостиницы", "sanatoriums": "Санатории", "recreation": "Организации отдыха"}
+ACC_RU = {k: v for k, v in ACC_RU.items() if k in cfg.accommodation_types}
 REGION_RU = {r.code: r.name for r in cfg.regions}
 MONTHS_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
 

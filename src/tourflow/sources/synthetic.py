@@ -33,7 +33,7 @@ PROFILE = {
     "46000000": (450, False, 0.03), "35000000": (500, True, 0.07), "92000000": (300, False, 0.06),
     "27000000": (220, True, 0.06), "07000000": (260, False, 0.04),
 }
-ACC_SCALE = {"hotels": 1.0, "sanatoriums": 0.18, "recreation": 0.25}
+ACC_SCALE = {"total": 1.45, "hotels": 1.0, "sanatoriums": 0.18, "recreation": 0.25}
 
 
 class SyntheticWorld:

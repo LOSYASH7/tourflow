@@ -76,6 +76,8 @@ class Source(ABC):
                     continue
                 self._store_raw(engine, req, content, ctype, run_id)
             self._parse_pending(engine, st)
+            if st.status == "skipped" and st.rows_fetched:
+                st.status = "success"            # данные пришли не по сети, а из inbox
             st.watermark_after = runlog.get_watermark(engine, self.name, "*")
         return st
 

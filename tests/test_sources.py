@@ -101,3 +101,31 @@ def test_synthetic_world_is_deterministic(cfg):
     a = SyntheticWorld(cfg, date(2026, 1, 1)).guests
     b = SyntheticWorld(cfg, date(2026, 6, 1)).guests
     pd.testing.assert_frame_equal(a, b)
+
+
+def test_emiss_operative_xls_with_cumulative_totals(cfg):
+    """Реальная выгрузка ЕМИСС: .xls, год над месяцами, «январь-…» нарастающим итогом."""
+    from pathlib import Path
+
+    content = (Path(__file__).parent / "fixtures" / "emiss_ksr_operative.xls").read_bytes()
+    src = RosstatSource(cfg, transport=None, today=date(2026, 11, 1))
+    src.default_acc = "total"
+    df = src.parse("data.xls", content, "")
+    assert df.region_code.nunique() == len(cfg.regions)
+    kras = df[df.region_code == "03000000"].set_index("month").guests
+    assert kras[date(2022, 1, 1)] == 436894
+    assert kras[date(2022, 2, 1)] == 813369 - 436894        # из нарастающего итога
+    assert (df.guests > 0).all()
+
+
+def test_emiss_like_xlsx_header(cfg):
+    content = _xlsx({"Данные": [
+        ["Численность размещенных лиц"],
+        ["", "2024", "", "", "2025"],
+        ["", "январь", "январь-февраль", "январь-март", "январь"],
+        ["        Город Москва столица Российской Федерации город федерального значения", 10, 25, 45, 12],
+    ]})
+    src = RosstatSource(cfg, transport=None, today=date(2026, 1, 1))
+    src.default_acc = "total"
+    df = src.parse("f.xlsx", content, "").sort_values("month")
+    assert df.guests.tolist() == [10, 15, 20, 12] and set(df.region_code) == {"45000000"}

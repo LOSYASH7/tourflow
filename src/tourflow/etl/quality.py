@@ -32,7 +32,7 @@ class CheckResult:
 SCHEMAS = {
     "stg.accommodation": pa.DataFrameSchema({
         "region_code": pa.Column(str, pa.Check.str_matches(r"^\d{8}$")),
-        "acc_type": pa.Column(str, pa.Check.isin(["hotels", "sanatoriums", "recreation"])),
+        "acc_type": pa.Column(str, pa.Check.isin(["total", "hotels", "sanatoriums", "recreation"])),
         "guests": pa.Column(int, pa.Check.ge(0)),
     }, unique=["region_code", "acc_type", "month"]),
     "stg.weather_daily": pa.DataFrameSchema({
