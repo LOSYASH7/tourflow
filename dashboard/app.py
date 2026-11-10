@@ -271,7 +271,13 @@ with tab3:
     tbl = per.pivot(index="feature", columns="period", values="importance")
     tbl = tbl.loc[tbl.mean(axis=1).nlargest(12).index]
     tbl.index = tbl.index.map(lambda f: FEATURE_RU.get(f, f))
-    st.dataframe(tbl.style.background_gradient(axis=None, cmap="Blues").format("{:.3f}"), width="stretch")
+    # тепловая карта на plotly — без зависимости от matplotlib
+    hm = go.Figure(go.Heatmap(z=tbl.values, x=list(tbl.columns), y=list(tbl.index), colorscale="Blues",
+                              text=np.round(tbl.values, 3), texttemplate="%{text}", hoverongaps=False,
+                              colorbar=dict(title="|SHAP|")))
+    hm.update_layout(height=40 * len(tbl) + 100, margin=dict(l=10, r=10, t=40, b=10), yaxis=dict(autorange="reversed"),
+                     xaxis=dict(type="category", side="top"))  # годы — подписи, а не числа
+    st.plotly_chart(hm, width="stretch")
     years = [c for c in tbl.columns if c.isdigit()]
     if len(years) >= 2:
         rc = tbl[years].rank(ascending=False).corr(method="spearman")
